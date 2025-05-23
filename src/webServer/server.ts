@@ -1,8 +1,8 @@
-import express, { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
-import twilio from "twilio";
+import express, { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import twilio from 'twilio';
 
-const ModuleName = "[server]";
+const ModuleName = '[server]';
 
 const app = express();
 app.use(express.json());
@@ -21,7 +21,7 @@ interface TimeSlot {
   userId: string;
   startTime: string;
   endTime: string;
-  availability: "public" | "private";
+  availability: 'public' | 'private';
 }
 
 interface JwtPayload {
@@ -34,13 +34,13 @@ const users: Record<string, User> = {};
 const timeSlots: TimeSlot[] = [];
 
 // --- Twilio Setup ---
-const accountSid = process.env.TWILIO_ACCOUNT_SID ?? "";
-const authToken = process.env.TWILIO_AUTH_TOKEN ?? "";
-const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER ?? "";
+const accountSid = process.env.TWILIO_ACCOUNT_SID ?? '';
+const authToken = process.env.TWILIO_AUTH_TOKEN ?? '';
+const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER ?? '';
 const twilioClient = twilio(accountSid, authToken);
 
 // --- JWT Secret ---
-const JWT_SECRET = process.env.JWT_SECRET ?? "your_jwt_secret";
+const JWT_SECRET = process.env.JWT_SECRET ?? 'your_jwt_secret';
 
 // --- Helpers ---
 const generateOTP = (): string => {
@@ -50,10 +50,10 @@ const generateOTP = (): string => {
 // --- Routes ---
 
 // 1) Register: send OTP
-app.post("/register", async (req: Request, res: Response) => {
+app.post('/register', async (req: Request, res: Response) => {
   const { phoneNumber } = req.body as { phoneNumber?: string };
   if (!phoneNumber) {
-    return res.status(400).json({ error: "Phone number is required" });
+    return res.status(400).json({ error: 'Phone number is required' });
   }
 
   const otp = generateOTP();
@@ -65,36 +65,36 @@ app.post("/register", async (req: Request, res: Response) => {
       from: twilioPhoneNumber,
       to: phoneNumber,
     });
-    return res.json({ message: "OTP sent successfully" });
+    return res.json({ message: 'OTP sent successfully' });
   } catch (error) {
-    console.error("Error sending OTP:", error);
-    return res.status(500).json({ error: "Failed to send OTP" });
+    console.error('Error sending OTP:', error);
+    return res.status(500).json({ error: 'Failed to send OTP' });
   }
 });
 
 // 2) Verify: check OTP and issue JWT
-app.post("/verify", (req: Request, res: Response) => {
+app.post('/verify', (req: Request, res: Response) => {
   const { phoneNumber, otp } = req.body as {
     phoneNumber?: string;
     otp?: string;
   };
   if (!phoneNumber || !otp) {
-    return res.status(400).json({ error: "Phone number and OTP are required" });
+    return res.status(400).json({ error: 'Phone number and OTP are required' });
   }
 
   const user = users[phoneNumber];
   if (!user) {
-    return res.status(400).json({ error: "User not found" });
+    return res.status(400).json({ error: 'User not found' });
   }
 
   if (user.otp === otp) {
     user.verified = true;
     const token = jwt.sign({ id: user.id, phoneNumber }, JWT_SECRET, {
-      expiresIn: "1h",
+      expiresIn: '1h',
     });
-    return res.json({ message: "Verification successful", token });
+    return res.json({ message: 'Verification successful', token });
   } else {
-    return res.status(400).json({ error: "Invalid OTP" });
+    return res.status(400).json({ error: 'Invalid OTP' });
   }
 });
 
@@ -110,31 +110,29 @@ declare global {
 const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
-    return res.status(401).json({ error: "Authorization header missing" });
+    return res.status(401).json({ error: 'Authorization header missing' });
   }
 
-  const token = authHeader.split(" ")[1];
+  const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
     req.user = decoded;
     next();
   } catch {
-    return res.status(401).json({ error: "Invalid token" });
+    return res.status(401).json({ error: 'Invalid token' });
   }
 };
 
 // 4) Create a time slot
-app.post("/slot", authenticate, (req: Request, res: Response) => {
+app.post('/slot', authenticate, (req: Request, res: Response) => {
   const { startTime, endTime, availability } = req.body as {
     startTime?: string;
     endTime?: string;
-    availability?: "public" | "private";
+    availability?: 'public' | 'private';
   };
 
   if (!startTime || !endTime || !availability) {
-    return res
-      .status(400)
-      .json({ error: "startTime, endTime, and availability are required" });
+    return res.status(400).json({ error: 'startTime, endTime, and availability are required' });
   }
 
   const newSlot: TimeSlot = {
@@ -146,11 +144,11 @@ app.post("/slot", authenticate, (req: Request, res: Response) => {
   };
 
   timeSlots.push(newSlot);
-  return res.json({ message: "Time slot created successfully", slot: newSlot });
+  return res.json({ message: 'Time slot created successfully', slot: newSlot });
 });
 
 // 5) List all slots for the authenticated user
-app.get("/slots", authenticate, (req: Request, res: Response) => {
+app.get('/slots', authenticate, (req: Request, res: Response) => {
   const userSlots = timeSlots.filter((slot) => slot.userId === req.user!.id);
   return res.json({ slots: userSlots });
 });
