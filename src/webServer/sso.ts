@@ -16,10 +16,15 @@ declare global {
   }
 }
 
-export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
-    return res.status(401).json({ error: 'Authorization header missing' });
+    res.status(401).json({ error: 'Authorization header missing' });
+    return;
   }
 
   const token = authHeader.split(' ')[1];
@@ -28,6 +33,7 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
     req.user = decoded;
     next();
   } catch {
-    return res.status(401).json({ error: 'Invalid token' });
+    res.status(401).json({ error: 'Invalid token' });
+    return;
   }
 };

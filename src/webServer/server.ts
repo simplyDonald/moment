@@ -40,41 +40,44 @@ const generateOTP = (): string => {
 // --- Routes ---
 
 // 1) Register: send OTP
-app.post('/register', async (req: Request, res: Response) => {
-  const { phoneNumber } = req.body as { phoneNumber?: string };
-  if (!phoneNumber) {
-    return res.status(400).json({ error: 'Phone number is required' });
-  }
-
-  const otp = generateOTP();
-  users[phoneNumber] = { id: phoneNumber, otp, verified: false };
-
+app.post('/register', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    const { phoneNumber } = req.body as { phoneNumber?: string };
+    if (!phoneNumber) {
+      res.status(400).json({ error: 'Phone number is required' });
+      return;
+    }
+
+    const otp = generateOTP();
+    users[phoneNumber] = { id: phoneNumber, otp, verified: false };
+
     await twilioClient.messages.create({
       body: `Your verification code is ${otp}`,
       from: twilioPhoneNumber,
       to: phoneNumber,
     });
-    return res.json({ message: 'OTP sent successfully' });
+    res.json({ message: 'OTP sent successfully' });
   } catch (error) {
     console.error('Error sending OTP:', error);
-    return res.status(500).json({ error: 'Failed to send OTP' });
+    res.status(500).json({ error: 'Failed to send OTP' });
   }
 });
 
 // 2) Verify: check OTP and issue JWT
-app.post('/verify', (req: Request, res: Response) => {
+app.post('/verify', (req: Request, res: Response, next: NextFunction): void => {
   const { phoneNumber, otp } = req.body as {
     phoneNumber?: string;
     otp?: string;
   };
   if (!phoneNumber || !otp) {
-    return res.status(400).json({ error: 'Phone number and OTP are required' });
+    res.status(400).json({ error: 'Phone number and OTP are required' });
+    return;
   }
 
   const user = users[phoneNumber];
   if (!user) {
-    return res.status(400).json({ error: 'User not found' });
+    res.status(400).json({ error: 'User not found' });
+    return;
   }
 
   if (user.otp === otp) {
@@ -82,14 +85,18 @@ app.post('/verify', (req: Request, res: Response) => {
     const token = jwt.sign({ id: user.id, phoneNumber }, jwtSecret, {
       expiresIn: '1h',
     });
-    return res.json({ message: 'Verification successful', token });
+    res.json({ message: 'Verification successful', token });
   } else {
-    return res.status(400).json({ error: 'Invalid OTP' });
+    res.status(400).json({ error: 'Invalid OTP' });
   }
 });
 
 // 4) Create a time slot
-app.post('/slot', authenticate, (req: Request, res: Response) => {
+app.post('/slot', authenticate, (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   const { startTime, endTime, availability } = req.body as {
     startTime?: string;
     endTime?: string;
@@ -97,7 +104,8 @@ app.post('/slot', authenticate, (req: Request, res: Response) => {
   };
 
   if (!startTime || !endTime || !availability) {
-    return res.status(400).json({ error: 'startTime, endTime, and availability are required' });
+    res.status(400).json({ error: 'startTime, endTime, and availability are required' });
+    return;
   }
 
   const newSlot: TimeSlot = {
@@ -109,13 +117,17 @@ app.post('/slot', authenticate, (req: Request, res: Response) => {
   };
 
   timeSlots.push(newSlot);
-  return res.json({ message: 'Time slot created successfully', slot: newSlot });
+  res.json({ message: 'Time slot created successfully', slot: newSlot });
 });
 
 // 5) List all slots for the authenticated user
-app.get('/slots', authenticate, (req: Request, res: Response) => {
+app.get('/slots', authenticate, (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   const userSlots = timeSlots.filter((slot) => slot.userId === req.user!.id);
-  return res.json({ slots: userSlots });
+  res.json({ slots: userSlots });
 });
 
 // --- Start Server ---
