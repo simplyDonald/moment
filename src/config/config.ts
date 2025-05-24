@@ -1,5 +1,11 @@
 import * as dotenv from 'dotenv';
 
 const ModuleName = '[config]';
-export const evhNamespaceConnectionString = process.env['EVENTHUBCONNSTR_EVENTHUB_NAMESPACE_CONNECTION_STRING'] || '';
-export const evhConnectionString = process.env['EVENTHUBCONNSTR_EVENTHUB_CONNECTION_STRING'] || '';
+
+// --- Twilio Setup ---
+export const twilioAccountSid = process.env['TWILIO_ACCOUNT_SID='] || '';
+export const twilioAuthToken = process.env['TWILIO_AUTH_TOKEN'] || '';
+export const twilioPhoneNumber = process.env['TWILIO_PHONE_NUMBER'] || '';
+
+// --- JWT Secret ---
+export const jwtSecret = process.env['JWT_SECRET'] || '';

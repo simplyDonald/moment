@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import twilio from 'twilio';
+import { twilioAccountSid, twilioAuthToken, twilioPhoneNumber, jwtSecret } from '../config/config';
+import { authenticate } from './sso';
 
 const ModuleName = '[server]';
 
@@ -24,23 +26,11 @@ interface TimeSlot {
   availability: 'public' | 'private';
 }
 
-interface JwtPayload {
-  id: string;
-  phoneNumber: string;
-}
-
 // --- In-Memory Storage (for MVP/demo) ---
 const users: Record<string, User> = {};
 const timeSlots: TimeSlot[] = [];
 
-// --- Twilio Setup ---
-const accountSid = process.env.TWILIO_ACCOUNT_SID ?? '';
-const authToken = process.env.TWILIO_AUTH_TOKEN ?? '';
-const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER ?? '';
-const twilioClient = twilio(accountSid, authToken);
-
-// --- JWT Secret ---
-const JWT_SECRET = process.env.JWT_SECRET ?? 'your_jwt_secret';
+const twilioClient = twilio(twilioAccountSid, twilioAuthToken);
 
 // --- Helpers ---
 const generateOTP = (): string => {
@@ -89,7 +79,7 @@ app.post('/verify', (req: Request, res: Response) => {
 
   if (user.otp === otp) {
     user.verified = true;
-    const token = jwt.sign({ id: user.id, phoneNumber }, JWT_SECRET, {
+    const token = jwt.sign({ id: user.id, phoneNumber }, jwtSecret, {
       expiresIn: '1h',
     });
     return res.json({ message: 'Verification successful', token });
@@ -97,31 +87,6 @@ app.post('/verify', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Invalid OTP' });
   }
 });
-
-// 3) Auth middleware
-declare global {
-  namespace Express {
-    interface Request {
-      user?: JwtPayload;
-    }
-  }
-}
-
-const authenticate = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: 'Authorization header missing' });
-  }
-
-  const token = authHeader.split(' ')[1];
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    req.user = decoded;
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-};
 
 // 4) Create a time slot
 app.post('/slot', authenticate, (req: Request, res: Response) => {
